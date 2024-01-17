@@ -1,0 +1,11 @@
+export struct Config {
+    master-switch: bool,
+    force: bool,
+    target-temp: float,
+    require-co2: bool,
+    co2-target: float
+}
+
+export global Logic {
+    in-out property<Config> config;
+}

@@ -1,0 +1,227 @@
+import { Button, VerticalBox, GridBox, HorizontalBox, GroupBox, Switch, LineEdit} from "std-widgets.slint";
+import { Chevron, ChevronDirection, CloseButton, PowerButton } from "elements.slint";
+import { Logic, Config } from "logic.slint";
+import { Style } from "style.slint";
+
+export { Logic, Config } // Re-export the logic so it can be referenced from Rust.
+
+export component AppWindow inherits Window {
+    title: "Thermostat";
+    icon: @image-url("../assets/icon.png");
+    width: 300px;
+    height: 400px;
+    background: transparent;
+    no-frame: true;
+
+    in-out property<float> transparency: 0.1;
+    out property<bool> co2-focused <=> co2.has-focus;
+    in property<float> current-temp: 0.0;
+
+    callback request-window-move(int, int);
+    callback request-quit();
+    callback request-config-change();
+    callback focus-change(bool);
+    callback key-pressed <=> focus.key-pressed;
+    callback window-init <=> self.init;
+
+    init => {
+        focus.focus(); // Focus the window on startup
+    }
+
+    // Background
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: Style.background-color.transparentize(transparency);
+        border-color: Style.border-color.transparentize(transparency);
+        border-width: 3px;
+        border-radius: 10px;
+    }
+
+    // Icon
+    Image {
+        x: 40px;
+        y: 12px;
+        width: 26px;
+        height: 26px;
+        source: @image-url("../assets/icon.png");
+    }
+
+    // Area to drag the window
+    TouchArea {
+        moved => {
+            root.request-window-move((self.mouse-x - self.pressed-x) / 1px, (self.mouse-y - self.pressed-y) / 1px);
+        }
+    }
+
+    // Focus handler to handle key events
+    focus := FocusScope {}
+
+    // Close button
+    CloseButton {
+        x: parent.width - 30px;
+        y: 10px;
+        width: 20px;
+        height: 20px;
+        
+        clicked => {
+            root.request-quit();
+        }
+    }
+
+    // Box to align the title with rest of the content
+    VerticalBox {
+        // Title
+        Text {
+            horizontal-alignment: center;
+            text: "Thermostat";
+            font-size: 30px;
+            font-weight: 600;
+            height: 36px;
+            color: Style.title-color;
+        }
+
+        // Box to split switches and temperature/power button
+        GridBox {
+            // Current temperature
+            HorizontalLayout {
+                alignment: center;
+                col: 0;
+                row: 0;
+
+                VerticalLayout {
+                    alignment: center;
+                    padding-top: -17px; // Hack to align the text with the temperature
+
+                    Text {
+                        horizontal-alignment: center;
+                        text: "Current";
+                        font-size: 15px;
+                        color: Style.text-color;
+                    }
+
+                    Text {
+                        horizontal-alignment: center;
+                        text: "\{current-temp} °C";
+                        font-size: 40px;
+                        color: Style.text-color;
+                    }
+                }
+            }
+
+            // Switches
+            VerticalBox {
+                alignment: center;
+                col: 0;
+                row: 1;
+
+                Switch {
+                    checked: Logic.config.force;
+                    text: "Force on";
+
+                    toggled => {
+                        Logic.config.force = self.checked;
+                        root.request-config-change();
+                    }
+                }
+
+                require-co2 := Switch {
+                    checked: Logic.config.co2-target >= 0;
+                    text: "Require CO₂";
+
+                    toggled => {
+                        Logic.config.require-co2 = self.checked;
+                        root.request-config-change();
+                    }
+                }
+
+                HorizontalLayout {
+                    width: 100px;
+                    spacing: 5px;
+                    co2 := LineEdit {
+                        enabled: require-co2.checked;
+                        input-type: number;
+                        text: "\{Logic.config.co2-target}";
+                        width: 60px;
+                        
+                        accepted(content) => {
+                            Logic.config.co2-target = content.to_float();
+                            root.request-config-change();
+                        }
+                    }
+
+                    Text {
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
+                        text: "ppm CO₂";
+                    }
+                }
+            }
+
+            // Temperature
+            VerticalBox {
+                alignment: center;
+                width: 150px;
+                col: 1;
+                row: 0;
+
+                property<length> chevron-size: 80px;
+
+                HorizontalLayout {
+                    alignment: center;
+
+                    Chevron {
+                        width: chevron-size;
+                        height: chevron-size / 2;
+                        direction: up;
+
+                        clicked => {
+                            Logic.config.target-temp += 0.5;
+                            root.request-config-change();
+                        }
+                    }
+                }
+
+                Text {
+                    horizontal-alignment: center;
+                    text: "\{Logic.config.target-temp} °C";
+                    font-size: 40px;
+                    color: Style.text-color;
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+
+                    Chevron {
+                        width: chevron-size;
+                        height: chevron-size / 2;
+                        direction: down;
+
+                        clicked => {
+                            Logic.config.target-temp -= 0.5;
+                            root.request-config-change();
+                        }
+                    }
+                }
+            }
+
+            // Power button
+            HorizontalBox {
+                alignment: center;
+                col: 1;
+                row: 1;
+
+                PowerButton {
+                    on: Logic.config.master-switch;
+                    width: 100px;
+                    height: 100px;
+
+                    toggle(state) => {
+                        Logic.config.master-switch = state;
+                        root.request-config-change();
+                    }
+                }
+            }
+        }
+    }
+}

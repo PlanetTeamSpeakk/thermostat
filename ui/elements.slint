@@ -1,0 +1,58 @@
+export enum ChevronDirection {
+    up,
+    down
+}
+
+export component Chevron inherits Rectangle {
+    callback clicked <=> touch.clicked;
+    in-out property<ChevronDirection> direction: up;
+
+    // Actual chevron
+    Path {
+        fill: touch.pressed ? #1f344e : #32527b;
+        commands: direction == ChevronDirection.up ?
+            "m49.373 0a3.0001 3.0001 0 0 0-2.2578 1.0449l-46.391 54a2.9998 2.9998 0 0 0 0.32031 4.2305 2.9998 2.9998 0 0 0 4.2305-0.32031l44.145-51.385 45.33 51.414a2.9998 2.9998 0 0 0 4.2344 0.26562 2.9998 2.9998 0 0 0 0.26562-4.2344l-47.607-54a3.0001 3.0001 0 0 0-2.2695-1.0156z" :
+            "m3.1875 0.0058594a2.9998 2.9998 0 0 0-2.1719 0.74414 2.9998 2.9998 0 0 0-0.26562 4.2344l47.607 54a3.0001 3.0001 0 0 0 4.5273-0.0293l46.391-54a2.9998 2.9998 0 0 0-0.32031-4.2305 2.9998 2.9998 0 0 0-4.2305 0.32031l-44.145 51.385-45.33-51.414a2.9998 2.9998 0 0 0-2.0625-1.0098z";
+    }
+
+    // To allow clicking the chevron
+    touch := TouchArea {}
+}
+
+export component CloseButton inherits Rectangle {
+    background: touch.pressed ? #c00000.darker(0.25) : #c00000;
+    border-radius: self.width / 8;
+
+    callback clicked <=> touch.clicked;
+
+    // White cross in button
+    Path {
+        width: 0.6 * parent.width; // Add padding
+        fill: touch.pressed ? white.darker(0.25) : white;
+        // Created with Inkscape
+        commands: "m 0.5,-0.5 a 1,1 0 0 0 -0.70703125,0.29296875 1,1 0 0 0 0,1.41406245 L 18.792969,20.207031 a 1,1 0 0 0 1.414062,0 1,1 0 0 0 0,-1.414062 L 1.2070312,-0.20703125 A 1,1 0 0 0 0.5,-0.5 Z M 0.49995465,0.49995465 19.500046,19.500045 M 19.5,-0.5 a 1,1 0 0 0 -0.707031,0.29296875 L -0.20703125,18.792969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.41406245,0 L 20.207031,1.2070312 a 1,1 0 0 0 0,-1.41406245 A 1,1 0 0 0 19.5,-0.5 Z m 0,0.99995731 L 0.49995731,19.500043";
+    }
+
+    // To allow clicking the close button
+    touch := TouchArea {}
+}
+
+export component PowerButton inherits Rectangle {
+    in-out property<bool> on: true;
+    callback toggle(bool);
+    background: on ? touch.pressed ? forestgreen.darker(0.25) : forestgreen : touch.pressed ? firebrick.darker(0.25) : firebrick;
+    border-radius: self.width;
+
+    Path {
+        height: 0.8 * parent.height; // Add padding
+        fill: white;
+        commands: "m10 0a1.5 1.5 0 0 0-1.5 1.5v9a1.5 1.5 0 0 0 1.5 1.5 1.5 1.5 0 0 0 1.5-1.5v-9a1.5 1.5 0 0 0-1.5-1.5zm-5.3867 4.5059a1.4275 1.4275 0 0 0-1.041 0.32812c-3.217 2.6993-4.407 7.1358-2.9707 11.082 1.4363 3.9462 5.199 6.5801 9.3984 6.5801 4.1994 0 7.9621-2.6339 9.3984-6.5801 1.4363-3.9462 0.24626-8.3827-2.9707-11.082a1.4275 1.4275 0 0 0-2.0098 0.17578 1.4275 1.4275 0 0 0 0.17578 2.0117c2.3051 1.9342 3.1502 5.0904 2.1211 7.918s-3.7058 4.7012-6.7148 4.7012c-3.009 0-5.6857-1.8736-6.7148-4.7012-1.0292-2.8276-0.18396-5.9838 2.1211-7.918a1.4275 1.4275 0 0 0 0.17578-2.0117 1.4275 1.4275 0 0 0-0.96875-0.50391z";
+    }
+
+    touch := TouchArea {
+        clicked => {
+            on = !on;
+            toggle(on);
+        }
+    }
+}
