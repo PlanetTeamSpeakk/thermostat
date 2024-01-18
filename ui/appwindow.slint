@@ -20,7 +20,6 @@ export component AppWindow inherits Window {
     callback request-config-change();
     callback focus-change(bool);
     callback key-pressed <=> focus.key-pressed;
-    callback window-init <=> self.init;
 
     init => {
         focus.focus(); // Focus the window on startup

@@ -80,13 +80,6 @@ async fn run_ui(ui: AppWindow, resp: APIResponse) -> Result<(), slint::PlatformE
     });
 
     let ui_handle = ui.as_weak();
-    ui.on_window_init(move || {
-        let ui = ui_handle.unwrap();
-        println!("UI initialized!");
-        ui.window();
-    });
-
-    let ui_handle = ui.as_weak();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(15));
         loop {
