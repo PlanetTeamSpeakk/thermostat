@@ -1,3 +1,5 @@
+import { Style } from "style.slint";
+
 export struct Config {
     master-switch: bool,
     force: bool,
@@ -15,4 +17,10 @@ export struct State {
 export global Singletons {
     in-out property<Config> config;
     in-out property<State> state;
+}
+
+export global Functions {
+    public pure function darken-hc(color: color, clicked: bool, hover: bool) -> color {
+        return color.darker(clicked ? Style.click-darken : hover ? Style.hover-darken : 0);
+    }
 }
