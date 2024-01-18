@@ -1,9 +1,9 @@
 import { Button, VerticalBox, GridBox, HorizontalBox, GroupBox, Switch, LineEdit} from "std-widgets.slint";
-import { Chevron, ChevronDirection, CloseButton, PowerButton } from "elements.slint";
-import { Logic, Config } from "logic.slint";
+import { Chevron, ChevronDirection, CloseButton, PowerButton , Heat} from "elements.slint";
+import { Singletons, Config, State } from "logic.slint";
 import { Style } from "style.slint";
 
-export { Logic, Config } // Re-export the logic so it can be referenced from Rust.
+export { Singletons, Config, State } // Re-export the logic so it can be referenced from Rust.
 
 export component AppWindow inherits Window {
     title: "Thermostat";
@@ -15,7 +15,6 @@ export component AppWindow inherits Window {
 
     in-out property<float> transparency: 0.1;
     out property<bool> co2-focused <=> co2.has-focus;
-    in property<float> current-temp: 0.0;
 
     callback request-window-move(int, int);
     callback request-quit();
@@ -89,22 +88,43 @@ export component AppWindow inherits Window {
                 col: 0;
                 row: 0;
 
-                VerticalLayout {
-                    alignment: center;
-                    padding-top: -17px; // Hack to align the text with the temperature
+                GridLayout {
+                    HorizontalLayout {
+                        col: 0;
+                        row: 0;
+                        alignment: center;
 
-                    Text {
-                        horizontal-alignment: center;
-                        text: "Current";
-                        font-size: 15px;
-                        color: Style.text-color;
+                        Heat {
+                            heating: Singletons.state.is-heating;
+                            width: 70px;
+                            opacity: self.heating ? 0.35 : 0;
+
+                            animate opacity {
+                                duration: 150ms;
+                            }
+                        }
                     }
+                    
 
-                    Text {
-                        horizontal-alignment: center;
-                        text: "\{current-temp} °C";
-                        font-size: 40px;
-                        color: Style.text-color;
+                    VerticalLayout {
+                        col: 0;
+                        row: 0;
+                        alignment: center;
+                        padding-top: -17px; // Hack to align the text with the temperature
+    
+                        Text {
+                            horizontal-alignment: center;
+                            text: "Current";
+                            font-size: 15px;
+                            color: Style.text-color;
+                        }
+    
+                        Text {
+                            horizontal-alignment: center;
+                            text: "\{Singletons.state.current-temp} °C";
+                            font-size: 40px;
+                            color: Style.text-color;
+                        }
                     }
                 }
             }
@@ -115,37 +135,40 @@ export component AppWindow inherits Window {
                 col: 0;
                 row: 1;
 
+                // Force on switch
                 Switch {
-                    checked: Logic.config.force;
+                    checked: Singletons.config.force;
                     text: "Force on";
 
                     toggled => {
-                        Logic.config.force = self.checked;
+                        Singletons.config.force = self.checked;
                         root.request-config-change();
                     }
                 }
 
+                // Require CO₂ switch
                 require-co2 := Switch {
-                    checked: Logic.config.co2-target >= 0;
+                    checked: Singletons.config.co2-target >= 0;
                     text: "Require CO₂";
 
                     toggled => {
-                        Logic.config.require-co2 = self.checked;
+                        Singletons.config.require-co2 = self.checked;
                         root.request-config-change();
                     }
                 }
 
+                // CO₂ target
                 HorizontalLayout {
                     width: 100px;
                     spacing: 5px;
                     co2 := LineEdit {
                         enabled: require-co2.checked;
                         input-type: number;
-                        text: "\{Logic.config.co2-target}";
+                        text: "\{Singletons.config.co2-target}";
                         width: 60px;
                         
                         accepted(content) => {
-                            Logic.config.co2-target = content.to_float();
+                            Singletons.config.co2-target = content.to_float();
                             root.request-config-change();
                         }
                     }
@@ -153,6 +176,8 @@ export component AppWindow inherits Window {
                     Text {
                         vertical-alignment: center;
                         horizontal-alignment: center;
+                        height: 24px;
+                        color: #ccced4; // Same color as the switches' text
                         text: "ppm CO₂";
                     }
                 }
@@ -176,7 +201,7 @@ export component AppWindow inherits Window {
                         direction: up;
 
                         clicked => {
-                            Logic.config.target-temp += 0.5;
+                            Singletons.config.target-temp += 0.5;
                             root.request-config-change();
                         }
                     }
@@ -184,7 +209,7 @@ export component AppWindow inherits Window {
 
                 Text {
                     horizontal-alignment: center;
-                    text: "\{Logic.config.target-temp} °C";
+                    text: "\{Singletons.config.target-temp} °C";
                     font-size: 40px;
                     color: Style.text-color;
                 }
@@ -198,7 +223,7 @@ export component AppWindow inherits Window {
                         direction: down;
 
                         clicked => {
-                            Logic.config.target-temp -= 0.5;
+                            Singletons.config.target-temp -= 0.5;
                             root.request-config-change();
                         }
                     }
@@ -212,12 +237,12 @@ export component AppWindow inherits Window {
                 row: 1;
 
                 PowerButton {
-                    on: Logic.config.master-switch;
+                    on: Singletons.config.master-switch;
                     width: 100px;
                     height: 100px;
 
                     toggle(state) => {
-                        Logic.config.master-switch = state;
+                        Singletons.config.master-switch = state;
                         root.request-config-change();
                     }
                 }

@@ -6,6 +6,13 @@ export struct Config {
     co2-target: float
 }
 
-export global Logic {
+export struct State {
+    current-temp: float,
+    co2: int,
+    is-heating: bool
+}
+
+export global Singletons {
     in-out property<Config> config;
+    in-out property<State> state;
 }

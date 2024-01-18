@@ -1,32 +1,34 @@
 // #![windows_subsystem = "windows"] // Uncomment this line to hide the console window on Windows.
 
-use std::collections::HashMap;
 use slint::private_unstable_api::re_exports::{EventResult, KeyEvent};
 
 slint::include_modules!();
 
 const API_URL: &str = "http://192.168.178.66:5566/";
-const METRICS_URL: &str = "http://192.168.178.66:8000/";
 
 #[tokio::main]
 async fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
 
-    let cfg_res = get_config_async().await;
-    match cfg_res {
-        Ok(cfg) => run_ui(ui, cfg).await,
+    let api_res = get_api_async(true).await;
+    match api_res {
+        Ok(resp) => run_ui(ui, resp).await,
         Err(e) => Ok(eprintln!("Could not get config from API: {:?}", e)),
     }
 }
 
-async fn run_ui(ui: AppWindow, cfg: ThermostatConfig) -> Result<(), slint::PlatformError> {
-    ui.global::<Logic>().set_config(cfg.into()); // Set initial config
+async fn run_ui(ui: AppWindow, resp: APIResponse) -> Result<(), slint::PlatformError> {
+    let singletons = ui.global::<Singletons>();
+    singletons.set_config(resp.config.unwrap().into()); // Set initial config
+    singletons.set_state(resp.into()); // Set initial heating state
 
     // Handle target temp updates.
     let ui_handle = ui.as_weak();
     ui.on_request_config_change(move || {
         let ui = ui_handle.unwrap();
-        patch_api(&reqwest::Client::new(), ui.global::<Logic>().get_config().into()); // Send PATCH request to API
+        let cfg = ui.global::<Singletons>().get_config().into();
+
+        update_config(&ui, cfg);
     });
 
     // Window move event handler
@@ -89,14 +91,12 @@ async fn run_ui(ui: AppWindow, cfg: ThermostatConfig) -> Result<(), slint::Platf
         loop {
             interval.tick().await; // Run every 15 seconds
 
-            match get_metrics_async().await {
-                Ok(metrics) => {
+            match get_api_async(false).await {
+                Ok(resp) => {
                     // Ignore result, we don't care if it actually updated.
                     // If it didn't, the UI is probably gone anyway.
                     let _ = ui_handle.upgrade_in_event_loop(move |ui| {
-                        // Update temperature
-                        let temp = metrics.get("temperature").unwrap_or(&"0".to_string()).parse::<f32>().unwrap();
-                        ui.set_current_temp(temp);
+                        ui.global::<Singletons>().set_state(resp.into());
                     });
                 },
                 Err(err) => eprintln!("Could not get metrics from API: {:?}", err),
@@ -109,63 +109,48 @@ async fn run_ui(ui: AppWindow, cfg: ThermostatConfig) -> Result<(), slint::Platf
 
 /// Modify the thermostat config.
 fn modify_config(ui: &AppWindow, f: impl FnOnce(&mut ThermostatConfig)) {
-    let logic = ui.global::<Logic>(); // Get the logic module.
+    let singletons = ui.global::<Singletons>(); // Get the Singletons module.
 
-    let mut cfg: ThermostatConfig = logic.get_config().into(); // Get config.
+    let mut cfg: ThermostatConfig = singletons.get_config().into(); // Get config.
     f(&mut cfg); // Modify config.
-    logic.set_config(cfg.into()); // Set config.
+    singletons.set_config(cfg.into()); // Set config.
 
-    patch_api(&reqwest::Client::new(), cfg); // Send PATCH request to API
+    update_config(ui, cfg);
 }
 
-/// Send a PATCH request to the API.
-/// Any errors are printed to stderr.
-fn patch_api(client: &reqwest::Client, new_config: ThermostatConfig) {
-    let c: reqwest::Client = client.clone();
+fn update_config(ui: &AppWindow, cfg: ThermostatConfig) {
+    let ui_handle = ui.as_weak();
     tokio::spawn(async move {
-        match patch_api_async(&c, new_config).await {
-            Ok(cfg) => println!("API Patch success: {:?}", cfg),
-            Err(err) => eprintln!("API Patch error: {:?}", err),
+        // Send PATCH request to API
+        let res = patch_api_async(&reqwest::Client::new(), cfg).await;
+
+        if let Ok(resp) = res {
+            let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                // Update state
+                ui.global::<Singletons>().set_state(resp.into());
+            });
         }
     });
 }
 
-async fn patch_api_async(client: &reqwest::Client, new_config: ThermostatConfig) -> Result<ThermostatConfig, reqwest::Error> {
+/// Send a PATCH request to the API.
+async fn patch_api_async(client: &reqwest::Client, new_config: ThermostatConfig) -> Result<APIResponse, reqwest::Error> {
     println!("Updating config to {:?}", new_config);
 
     client.patch(API_URL)
         .json(&new_config)
         .send()
         .await?
-        .json::<ThermostatConfig>()
+        .json::<APIResponse>()
         .await
 }
 
-/// Get the current thermostat config from the API.
-async fn get_config_async() -> Result<ThermostatConfig, reqwest::Error> {
-    get_api_async().await
-}
-
-async fn get_api_async<T>() -> Result<T, reqwest::Error>
-where
-    T: serde::de::DeserializeOwned {
-    reqwest::get(API_URL)
+/// Get the current thermostat config and states from the API.
+async fn get_api_async(include_config: bool) -> Result<APIResponse, reqwest::Error> {
+    reqwest::get(API_URL.to_owned() + "?include_config=" + &include_config.to_string())
         .await?
-        .json::<T>()
+        .json()
         .await
-}
-
-/// Get the current metrics from the API as a HashMap of strings to strings.
-async fn get_metrics_async() -> Result<HashMap<String, String>, reqwest::Error> {
-    let resp = reqwest::get(METRICS_URL).await?.text().await?;
-    Ok(resp.split("\n")
-        .filter(|s| !s.starts_with("#")) // Filter out comments
-        .map(|s| s.split(" ") // Split keys and values
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>())
-        .filter(|v| v.len() == 2) // Filter out invalid lines
-        .map(|v| (v[0].clone(), v[1].clone()))
-        .collect::<HashMap<String, String>>())
 }
 
 // Thermostat config
@@ -198,6 +183,24 @@ impl From<ThermostatConfig> for Config {
             target_temp: cfg.target_temp,
             require_co2: cfg.co2_target.is_some(),
             co2_target: cfg.co2_target.unwrap_or(500.0),
+        }
+    }
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct APIResponse {
+    config: Option<ThermostatConfig>,
+    temperature: f32,
+    co2: i32,
+    is_heating: bool,
+}
+
+impl From<APIResponse> for State {
+    fn from(resp: APIResponse) -> Self {
+        Self {
+            current_temp: resp.temperature,
+            co2: resp.co2,
+            is_heating: resp.is_heating,
         }
     }
 }
