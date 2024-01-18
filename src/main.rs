@@ -2,23 +2,32 @@
 #![allow(non_snake_case)] // The project name is also the name of the process, which should have a capital T.
 
 use slint::private_unstable_api::re_exports::{EventResult, KeyEvent};
+use std::{fs, path::Path, io::{BufWriter, Write}};
 
 slint::include_modules!();
 
 const API_URL: &str = "http://192.168.178.66:5566/";
+const OPTIONS_PATH: &str = "options.json";
+
+type AnyError = Box<dyn std::error::Error>;
 
 #[tokio::main]
-async fn main() -> Result<(), slint::PlatformError> {
+async fn main() -> Result<(), AnyError> {
+    let options = 
+        if Path::new(OPTIONS_PATH).exists() { Some(fs::read_to_string(OPTIONS_PATH)?) }
+        else { None };
+    let options = options.map_or(Options::default(), |s| serde_json::from_str(&s).unwrap());
+
     let ui = AppWindow::new()?;
 
     let api_res = get_api_async(true).await;
     match api_res {
-        Ok(resp) => run_ui(ui, resp).await,
+        Ok(resp) => run_ui(ui, resp, options).await,
         Err(e) => Ok(eprintln!("Could not get config from API: {:?}", e)),
     }
 }
 
-async fn run_ui(ui: AppWindow, resp: APIResponse) -> Result<(), slint::PlatformError> {
+async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Result<(), AnyError> {
     let singletons = ui.global::<Singletons>();
     singletons.set_config(resp.config.unwrap().into()); // Set initial config
     singletons.set_state(resp.into()); // Set initial heating state
@@ -98,7 +107,23 @@ async fn run_ui(ui: AppWindow, resp: APIResponse) -> Result<(), slint::PlatformE
         }
     });
 
-    ui.run()
+    // Restore previous window position
+    ui.window().set_position(slint::WindowPosition::Physical(slint::PhysicalPosition { x: options.window_pos.0, y: options.window_pos.1 }));
+    ui.run()?;
+    
+    // Save options upon shutdown.
+    let pos = ui.window().position();
+    options.window_pos = (pos.x, pos.y);
+    save_options(&options)?;
+
+    Ok(())
+}
+
+fn save_options(options: &Options) -> Result<(), AnyError> {
+    let mut writer = BufWriter::new(fs::File::create(OPTIONS_PATH)?);
+    serde_json::to_writer_pretty(&mut writer, options)?;
+    writer.flush()?;
+    Ok(())
 }
 
 /// Modify the thermostat config.
@@ -195,6 +220,19 @@ impl From<APIResponse> for State {
             current_temp: resp.temperature,
             co2: resp.co2,
             is_heating: resp.is_heating,
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct Options {
+    window_pos: (i32, i32)
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            window_pos: (190, 190)
         }
     }
 }
