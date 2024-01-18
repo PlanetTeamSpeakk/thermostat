@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'thermostat'",
+            "name": "Debug executable 'Thermostat'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=thermostat",
-                    "--package=thermostat"
+                    "--bin=Thermostat",
+                    "--package=Thermostat"
                 ],
                 "filter": {
-                    "name": "thermostat",
+                    "name": "Thermostat",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'thermostat'",
+            "name": "Debug unit tests in executable 'Thermostat'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=thermostat",
-                    "--package=thermostat"
+                    "--bin=Thermostat",
+                    "--package=Thermostat"
                 ],
                 "filter": {
-                    "name": "thermostat",
+                    "name": "Thermostat",
                     "kind": "bin"
                 }
             },

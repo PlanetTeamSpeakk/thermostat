@@ -14,7 +14,6 @@ export component AppWindow inherits Window {
     no-frame: true;
 
     in-out property<float> transparency: 0.1;
-    out property<bool> co2-focused <=> co2.has-focus;
 
     callback request-window-move(int, int);
     callback request-quit();
@@ -87,6 +86,7 @@ export component AppWindow inherits Window {
                 alignment: center;
                 col: 0;
                 row: 0;
+                width: 130px;
 
                 GridLayout {
                     HorizontalLayout {
@@ -183,7 +183,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // Temperature
+            // Target temperature
             VerticalBox {
                 alignment: center;
                 width: 150px;
