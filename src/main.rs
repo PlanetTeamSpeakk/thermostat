@@ -1,4 +1,4 @@
-// #![windows_subsystem = "windows"] // Uncomment this line to hide the console window on Windows.
+#![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")] // Hide console window on Windows if we're not debugging.
 #![allow(non_snake_case)] // The project name is also the name of the process, which should have a capital T.
 
 use slint::private_unstable_api::re_exports::{EventResult, KeyEvent};
