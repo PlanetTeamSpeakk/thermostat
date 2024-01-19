@@ -13,20 +13,20 @@ type AnyError = Box<dyn std::error::Error>;
 
 #[tokio::main]
 async fn main() -> Result<(), AnyError> {
+    // Read options from disk.
     let options = 
         if Path::new(OPTIONS_PATH).exists() { Some(fs::read_to_string(OPTIONS_PATH)?) }
         else { None };
     let options = options.map_or(Options::default(), |s| serde_json::from_str(&s).unwrap());
 
-    let ui = AppWindow::new()?;
+    // Get initial config and states from API.
+    let api_resp = get_api_async(true).await?;
 
-    let api_res = get_api_async(true).await;
-    match api_res {
-        Ok(resp) => run_ui(ui, resp, options).await,
-        Err(e) => Ok(eprintln!("Could not get config from API: {:?}", e)),
-    }
+    // Run the UI.
+    run_ui(AppWindow::new()?, api_resp, options).await
 }
 
+/// Registers event handlers and runs the UI.
 async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Result<(), AnyError> {
     let singletons = ui.global::<Singletons>();
     singletons.set_config(resp.config.unwrap().into()); // Set initial config
@@ -58,6 +58,7 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
         let _ = ui.window().hide(); // We do not care about the result here.
     });
 
+    // Key event handler.
     let ui_handle = ui.as_weak();
     ui.on_key_pressed(move |e: KeyEvent| {
         let ui = ui_handle.unwrap();
@@ -88,6 +89,7 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
         }
     });
 
+    // Periodically update the UI with the latest data from the API.
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(15));
@@ -119,6 +121,7 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
     Ok(())
 }
 
+/// Writes the options to disk in JSON format.
 fn save_options(options: &Options) -> Result<(), AnyError> {
     let mut writer = BufWriter::new(fs::File::create(OPTIONS_PATH)?);
     serde_json::to_writer_pretty(&mut writer, options)?;
@@ -137,6 +140,8 @@ fn modify_config(ui: &AppWindow, f: impl FnOnce(&mut ThermostatConfig)) {
     update_config(ui, cfg);
 }
 
+// Sends a PATCH request to the API to update the config.
+// This is done asynchronously.
 fn update_config(ui: &AppWindow, cfg: ThermostatConfig) {
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
