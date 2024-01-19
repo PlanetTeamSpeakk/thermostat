@@ -1,8 +1,8 @@
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")] // Hide console window on Windows if we're not debugging.
 #![allow(non_snake_case)] // The project name is also the name of the process, which should have a capital T.
 
-use slint::private_unstable_api::re_exports::{EventResult, KeyEvent};
-use std::{fs, path::Path, io::{BufWriter, Write}};
+use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
+use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration};
 
 slint::include_modules!();
 
@@ -92,7 +92,7 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
     // Periodically update the UI with the latest data from the API.
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(15));
+        let mut interval = tokio::time::interval(Duration::from_secs(15));
         loop {
             interval.tick().await; // Run every 15 seconds
 
@@ -110,7 +110,7 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
     });
 
     // Restore previous window position
-    ui.window().set_position(slint::WindowPosition::Physical(slint::PhysicalPosition { x: options.window_pos.0, y: options.window_pos.1 }));
+    ui.window().set_position(WindowPosition::Physical(PhysicalPosition { x: options.window_pos.0, y: options.window_pos.1 }));
     ui.run()?;
     
     // Save options upon shutdown.
