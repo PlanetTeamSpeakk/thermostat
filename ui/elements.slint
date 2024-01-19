@@ -109,3 +109,30 @@ export component Heat {
         commands: "m7.7292 4.6188c-3.4186 3.8087-4.919 7.7417-4.9645 11.776-0.03757 3.331 0.4002 6.7615 0.92363 10.102 0.76719 4.8965 2.2147 8.7175-0.92363 15.009-2.3993 4.8099-4.3808 8.6059-0.83543 8.1244 4.03-0.54738 6.9581-2.5383 9.8408-6.2194 2.8965-3.6987 4.5604-8.8322 3.81-16.625-0.79265-8.2314-1.4569-7.1986-1.5586-11.199-0.09135-3.593 0.53486-4.7654 2.1359-10.102 1.5586-5.1954 0.90756-5.4425-0.34636-5.4841-1.1066-0.036656-5.2147 1.4239-8.0818 4.6182z";
     }
 }
+
+// An image with a filter color.
+// Achieved by overlaying the image with a copy of itself.
+// The bottom image is colorized (meaning its alpha channel is used as a mask for the color)
+// and the top image is made transparent. This combines the color of the bottom image with
+// the top, achieving a filter effect.
+export component ImageWithFilter {
+    in property<image> source;
+    in property<color> filter-color;
+    in property<float> filter-intensity;
+
+    // Filter
+    Image {
+        width: parent.width;
+        height: parent.height;
+        colorize: filter-color;
+        source: source;
+    }
+
+    // Image
+    Image {
+        width: parent.width;
+        height: parent.height;
+        opacity: 1 - filter-intensity;
+        source: source;
+    }
+}

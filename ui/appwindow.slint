@@ -1,5 +1,5 @@
-import { Button, VerticalBox, GridBox, HorizontalBox, GroupBox, Switch, LineEdit} from "std-widgets.slint";
-import { Chevron, ChevronDirection, CloseButton, PowerButton , Heat} from "elements.slint";
+import { Button, VerticalBox, GridBox, HorizontalBox, GroupBox, Switch, LineEdit } from "std-widgets.slint";
+import { Chevron, ChevronDirection, CloseButton, PowerButton, Heat , ImageWithFilter} from "elements.slint";
 import { Singletons, Config, State } from "logic.slint";
 import { Style } from "style.slint";
 
@@ -34,12 +34,13 @@ export component AppWindow inherits Window {
     }
 
     // Icon
-    Image {
+    ImageWithFilter {
         x: 40px;
         y: 12px;
         width: 26px;
         height: 26px;
-        opacity: 0.85;
+        filter-color: black;
+        filter-intensity: 0.125;
         source: @image-url("../assets/icon.png");
     }
 
