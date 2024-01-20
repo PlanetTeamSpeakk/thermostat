@@ -3,7 +3,7 @@
 
 use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
 use tokio::task::JoinHandle;
-use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration, sync::{Arc, Mutex}};
+use std::{fs, path::Path, io::{BufWriter, Write}, time::{Duration, Instant}};
 
 slint::include_modules!();
 
@@ -35,10 +35,12 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
 
     // Handle target temp updates.
     let ui_handle = ui.as_weak();
-    let task: Arc<Mutex<Option<JoinHandle<()>>>> = Arc::new(Mutex::new(None));
+    let mut task: Box<Option<JoinHandle<()>>> = Box::new(None);
+    let mut last: Box<Instant> = Box::new(Instant::now());
+    const UPDATE_MARGIN: Duration = Duration::from_millis(250);
+
     ui.on_request_config_change(move || {
         let ui_handle = ui_handle.clone();
-        let mut task = task.lock().unwrap();
 
         // If there is already a task running, cancel it.
         if let Some(jh) = &*task {
@@ -47,16 +49,26 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
             }
         }
 
+        // If the last update was less than 250ms ago, schedule an update for later.
+        // Otherwise, update immediately.
+        let do_delay = (*last).elapsed() < UPDATE_MARGIN;
+        *last = Instant::now();
+
         // Spawn a new task that will update the config after 250ms.
         let jh = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(250)).await; // Wait for the user to stop modifying.
+            if do_delay {
+                tokio::time::sleep(UPDATE_MARGIN).await; // Wait for the user to stop modifying.
+            }
+
             let _ = ui_handle.upgrade_in_event_loop(move |ui| {
                 let cfg = ui.global::<Singletons>().get_config().into();
                 update_config(&ui, cfg);
             });
         });
 
-        *task = Some(jh);
+        if do_delay {
+            *task = Some(jh);
+        }
     });
 
     // Window move event handler
