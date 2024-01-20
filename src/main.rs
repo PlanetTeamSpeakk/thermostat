@@ -33,7 +33,27 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
     singletons.set_config(resp.config.unwrap().into()); // Set initial config
     singletons.set_state(resp.into()); // Set initial heating state
 
-    // Handle target temp updates.
+    // Register event handlers
+    register_target_temp_handler(&ui);
+    register_window_move_handler(&ui);
+    register_quit_handler(&ui);
+    register_key_handler(&ui);
+
+    start_ui_updater(&ui);
+
+    // Restore previous window position
+    ui.window().set_position(WindowPosition::Physical(PhysicalPosition { x: options.window_pos.0, y: options.window_pos.1 }));
+    ui.run()?;
+    
+    // Save options upon shutdown.
+    let pos = ui.window().position();
+    options.window_pos = (pos.x, pos.y);
+    save_options(&options)?;
+
+    Ok(())
+}
+
+fn register_target_temp_handler(ui: &AppWindow) {
     let ui_handle = ui.as_weak();
     let mut task: Box<Option<JoinHandle<()>>> = Box::new(None);
     let mut last: Box<Instant> = Box::new(Instant::now());
@@ -70,8 +90,9 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
             *task = Some(jh);
         }
     });
+}
 
-    // Window move event handler
+fn register_window_move_handler(ui: &AppWindow) {
     let ui_handle = ui.as_weak();
     ui.on_request_window_move(move |dx: i32, dy: i32| {
         let ui = ui_handle.unwrap();
@@ -80,15 +101,17 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
         // Move the window along with the cursor.
         ui.window().set_position(slint::WindowPosition::Physical(slint::PhysicalPosition { x: pos.x + dx, y: pos.y + dy }));
     });
+}
 
-    // Window close event handler
+fn register_quit_handler(ui: &AppWindow) {
     let ui_handle = ui.as_weak();
     ui.on_request_quit(move || {
         let ui = ui_handle.unwrap();
         let _ = ui.window().hide(); // We do not care about the result here.
     });
+}
 
-    // Key event handler.
+fn register_key_handler(ui: &AppWindow) {
     let ui_handle = ui.as_weak();
     ui.on_key_pressed(move |e: KeyEvent| {
         let ui = ui_handle.unwrap();
@@ -118,7 +141,9 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
             _ => EventResult::Reject
         }
     });
+}
 
+fn start_ui_updater(ui: &AppWindow) {
     // Periodically update the UI with the latest data from the API.
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
@@ -138,17 +163,6 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
             }
         }
     });
-
-    // Restore previous window position
-    ui.window().set_position(WindowPosition::Physical(PhysicalPosition { x: options.window_pos.0, y: options.window_pos.1 }));
-    ui.run()?;
-    
-    // Save options upon shutdown.
-    let pos = ui.window().position();
-    options.window_pos = (pos.x, pos.y);
-    save_options(&options)?;
-
-    Ok(())
 }
 
 /// Writes the options to disk in JSON format.
