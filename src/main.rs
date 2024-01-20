@@ -3,7 +3,7 @@
 
 use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
 use tokio::task::JoinHandle;
-use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration, sync::{Arc, Mutex}, borrow::Borrow};
+use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration, sync::{Arc, Mutex}};
 
 slint::include_modules!();
 
@@ -41,7 +41,7 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
         let mut task = task.lock().unwrap();
 
         // If there is already a task running, cancel it.
-        if let Some(jh) = (*task).borrow() {
+        if let Some(jh) = &*task {
             if !jh.is_finished() {
                 jh.abort();
             }
