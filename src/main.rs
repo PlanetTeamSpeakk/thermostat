@@ -42,12 +42,11 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
     start_ui_updater(&ui);
 
     // Restore previous window position
-    ui.window().set_position(WindowPosition::Physical(PhysicalPosition { x: options.window_pos.0, y: options.window_pos.1 }));
+    ui.window().set_position(WindowPosition::Physical(options.window_pos));
     ui.run()?;
     
     // Save options upon shutdown.
-    let pos = ui.window().position();
-    options.window_pos = (pos.x, pos.y);
+    options.window_pos = ui.window().position();
     save_options(&options)?;
 
     Ok(())
@@ -275,13 +274,21 @@ impl From<APIResponse> for State {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Options {
-    window_pos: (i32, i32)
+    #[serde(with = "PhysicalPositionRemote")]
+    window_pos: PhysicalPosition,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
-            window_pos: (190, 190)
+            window_pos: PhysicalPosition { x: 190, y: 190 }
         }
     }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(remote = "PhysicalPosition")]
+struct PhysicalPositionRemote {
+    x: i32,
+    y: i32,
 }
