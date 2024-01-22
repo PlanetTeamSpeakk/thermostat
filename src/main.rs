@@ -7,7 +7,7 @@ use std::{fs, path::Path, io::{BufWriter, Write}, time::{Duration, Instant}};
 
 slint::include_modules!();
 
-const API_URL: &str = "http://192.168.178.66:5566/";
+const API_URL: &str = "http://192.168.178.48:5567/";
 const OPTIONS_PATH: &str = "options.json";
 
 type AnyError = Box<dyn std::error::Error>;
@@ -227,7 +227,7 @@ struct ThermostatConfig {
     master_switch: bool,
     force: bool,
     target_temp: f32,
-    co2_target: Option<f32>,
+    co2_target: Option<i32>,
 }
 
 // Allow for conversion between the slint-generated Config struct and the ThermostatConfig struct.
@@ -249,7 +249,7 @@ impl From<ThermostatConfig> for Config {
             force: cfg.force,
             target_temp: cfg.target_temp,
             require_co2: cfg.co2_target.is_some(),
-            co2_target: cfg.co2_target.unwrap_or(500.0),
+            co2_target: cfg.co2_target.unwrap_or(500),
         }
     }
 }
@@ -272,7 +272,7 @@ impl From<APIResponse> for State {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
 struct Options {
     #[serde(with = "PhysicalPositionRemote")]
     window_pos: PhysicalPosition,
