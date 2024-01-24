@@ -54,15 +54,15 @@ async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Resul
 
 fn register_target_temp_handler(ui: &AppWindow) {
     let ui_handle = ui.as_weak();
-    let mut task: Box<Option<JoinHandle<()>>> = Box::new(None);
-    let mut last: Box<Instant> = Box::new(Instant::now());
+    let mut task: Option<JoinHandle<()>> = None;
+    let mut last: Instant = Instant::now();
     const UPDATE_MARGIN: Duration = Duration::from_millis(250);
 
     ui.on_request_config_change(move || {
         let ui_handle = ui_handle.clone();
 
         // If there is already a task running, cancel it.
-        if let Some(jh) = &*task {
+        if let Some(jh) = &task {
             if !jh.is_finished() {
                 jh.abort();
             }
@@ -70,8 +70,8 @@ fn register_target_temp_handler(ui: &AppWindow) {
 
         // If the last update was less than 250ms ago, schedule an update for later.
         // Otherwise, update immediately.
-        let do_delay = (*last).elapsed() < UPDATE_MARGIN;
-        *last = Instant::now();
+        let do_delay = last.elapsed() < UPDATE_MARGIN;
+        last = Instant::now();
 
         // Spawn a new task that will update the config after 250ms.
         let jh = tokio::spawn(async move {
@@ -86,7 +86,7 @@ fn register_target_temp_handler(ui: &AppWindow) {
         });
 
         if do_delay {
-            *task = Some(jh);
+            task = Some(jh);
         }
     });
 }
