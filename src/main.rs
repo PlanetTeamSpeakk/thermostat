@@ -18,7 +18,13 @@ async fn main() -> Result<(), AnyError> {
     let options = 
         if Path::new(OPTIONS_PATH).exists() { Some(fs::read_to_string(OPTIONS_PATH)?) }
         else { None };
-    let options = options.map_or(Options::default(), |s| serde_json::from_str(&s).unwrap());
+    let mut options = options.map_or(Ok(Options::default()), |s| serde_json::from_str(&s));
+
+    if let Err(err) = &options {
+        eprintln!("Could not read options from disk: {:?}", err);
+        options = Ok(Options::default());
+    }
+    let options = options.unwrap();
 
     // Run the UI.
     let ui = AppWindow::new()?;
