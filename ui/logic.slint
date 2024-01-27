@@ -1,5 +1,6 @@
 import { Style } from "style.slint";
 
+// Heater config, gotten from the API.
 export struct Config {
     master-switch: bool,
     force: bool,
@@ -8,17 +9,26 @@ export struct Config {
     co2-target: int
 }
 
+// Current state of the heater, gotten from the API.
 export struct State {
     current-temp: float,
     co2: int,
     is-heating: bool
 }
 
+// App options, loaded upon startup.
+export struct AppOptions {
+    on-top: bool,
+}
+
+// Some global singletons.
 export global Singletons {
     in-out property<Config> config;
     in-out property<State> state;
+    in-out property<AppOptions> options;
 }
 
+// Some global utility functions.
 export global Functions {
     public pure function darken-hc(color: color, clicked: bool, hover: bool) -> color {
         return color.darker(clicked ? Style.click-darken : hover ? Style.hover-darken : 0);

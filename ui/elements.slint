@@ -144,3 +144,32 @@ export component Title inherits Text {
     font-weight: 600;
     color: Style.title-color;
 }
+
+export component OnTopIcon {
+    in-out property<brush> fill: white;
+
+    Path {
+        fill: parent.fill;
+        commands: "m0 0h24v2.5h-24zm12 4.0008s-0.49874-0.22406-8.4398 6.5045c-2.8872 2.4463-1.4756 4.8658 1.8547 2.8252 1.5129-0.92706 2.6217-1.5903 3.5217-2.1192v15.797c0 1.0999 0.68582 1.9916 1.5317 1.9916h3.1052c0.82306 0 1.4903-0.86759 1.4903-1.9379v-15.851c0.90006 0.52898 2.0083 1.1922 3.5212 2.1192 3.3303 2.0407 4.7424-0.37878 1.8552-2.8252-7.9411-6.7286-8.4403-6.5045-8.4403-6.5045z";
+    }
+}
+
+export component OnTopButton {
+    callback toggled(bool);
+
+    in-out property<bool> on: false;
+    in-out property<brush> color: white;
+
+    OnTopIcon {
+        width: parent.width;
+        height: parent.height;
+        fill: Functions.darken-hc(on ? color : color.darker(0.4), touch.pressed, touch.has-hover);
+    }
+
+    touch := TouchArea {
+        clicked => {
+            on = !on;
+            toggled(on);
+        }
+    }
+}

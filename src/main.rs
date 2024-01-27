@@ -10,6 +10,11 @@ slint::include_modules!();
 const API_URL: &str = "http://192.168.178.48:5567/";
 const OPTIONS_PATH: &str = "options.json";
 
+const WINDOW_OPACITY_FOCUSED: f32 = 0.9;
+const WINDOW_OPACITY_UNFOCUSED: f32 = 0.15;
+
+const TEMPERATURE_STEP: f32 = 0.5;
+
 type AnyError = Box<dyn std::error::Error>;
 
 #[tokio::main]
@@ -29,6 +34,7 @@ async fn main() -> Result<(), AnyError> {
     // Run the UI.
     let ui = AppWindow::new()?;
     ui.set_is_preview(false); // Disable preview mode.
+    ui.global::<Singletons>().set_options(options.app_options.clone());
     run_ui(ui, options).await
 }
 
@@ -66,6 +72,7 @@ async fn run_ui(ui: AppWindow, mut options: Options) -> Result<(), AnyError> {
     
     // Save options upon shutdown.
     options.window_pos = ui.window().position();
+    options.app_options = ui.global::<Singletons>().get_options().into();
     save_options(&options)?;
 
     Ok(())
@@ -146,13 +153,13 @@ fn register_key_handler(ui: &AppWindow) {
             },
             "\u{f700}" => { // Up arrow
                 modify_config(&ui, |cfg: &mut ThermostatConfig| {
-                    cfg.target_temp += 0.5;
+                    cfg.target_temp += TEMPERATURE_STEP;
                 });
                 EventResult::Accept
             },
             "\u{f701}" => { // Down arrow
                 modify_config(&ui, |cfg: &mut ThermostatConfig| {
-                    cfg.target_temp -= 0.5;
+                    cfg.target_temp -= TEMPERATURE_STEP;
                 });
                 EventResult::Accept
             },
@@ -173,9 +180,9 @@ fn register_focus_handler(ui: &AppWindow) {
 
             let _ = ui_handle.upgrade_in_event_loop(move |ui| {
                 if has_focus || ui.get_is_co2_focused() {
-                    ui.set_window_opacity(0.9);
+                    ui.set_window_opacity(WINDOW_OPACITY_FOCUSED);
                 } else {
-                    ui.set_window_opacity(0.25);
+                    ui.set_window_opacity(WINDOW_OPACITY_UNFOCUSED);
                 }
             });
         });
@@ -318,12 +325,15 @@ impl From<APIResponse> for State {
 struct Options {
     #[serde(with = "PhysicalPositionRemote")]
     window_pos: PhysicalPosition,
+    #[serde(with = "AppOptionsRemote")]
+    app_options: AppOptions,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
-            window_pos: PhysicalPosition { x: 190, y: 190 }
+            window_pos: PhysicalPosition { x: 190, y: 190 },
+            app_options: AppOptions::default(),
         }
     }
 }
@@ -333,4 +343,10 @@ impl Default for Options {
 struct PhysicalPositionRemote {
     x: i32,
     y: i32,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(remote = "AppOptions")]
+struct AppOptionsRemote {
+    on_top: bool,
 }

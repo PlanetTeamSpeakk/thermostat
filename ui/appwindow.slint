@@ -1,5 +1,5 @@
 import { Button, VerticalBox, GridBox, HorizontalBox, GroupBox, Switch, LineEdit } from "std-widgets.slint";
-import { Chevron, ChevronDirection, CloseButton, PowerButton, Heat , ImageWithFilter, Title} from "elements.slint";
+import { Chevron, ChevronDirection, CloseButton, PowerButton, Heat , ImageWithFilter, Title, OnTopButton} from "elements.slint";
 import { Singletons, Config, State } from "logic.slint";
 import { Style } from "style.slint";
 
@@ -12,6 +12,7 @@ export component AppWindow inherits Window {
     height: 400px;
     background: transparent;
     no-frame: true;
+    always-on-top: Singletons.options.on-top;
 
     in property<bool> is-preview: true; // Whether we're in preview mode. Set to false in the Rust code.
     in-out property<float> window-opacity: 0.9;
@@ -118,6 +119,19 @@ export component AppWindow inherits Window {
             
             clicked => {
                 root.request-quit();
+            }
+        }
+
+        OnTopButton {
+            on: Singletons.options.on-top;
+            color: lightgray;
+            x: parent.width - 60px;
+            y: 11px;
+            width: 20px;
+            height: 19px;
+
+            toggled => {
+                Singletons.options.on-top = self.on;
             }
         }
 
