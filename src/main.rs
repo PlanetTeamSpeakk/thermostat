@@ -146,7 +146,9 @@ fn start_ui_updater(ui: &AppWindow) {
     // Periodically update the UI with the latest data from the API.
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(15));
+        const UPDATE_INTERVAL: Duration = Duration::from_secs(15);
+        let mut interval = tokio::time::interval_at(Instant::now() + UPDATE_INTERVAL, UPDATE_INTERVAL);
+
         loop {
             interval.tick().await; // Run every 15 seconds
 
