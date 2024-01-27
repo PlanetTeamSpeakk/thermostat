@@ -2,7 +2,7 @@
 #![allow(non_snake_case)] // The project name is also the name of the process, which should have a capital T.
 
 use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
-use tokio::{task::JoinHandle, time::Instant};
+use tokio::{task::JoinHandle, time::{sleep, Instant}};
 use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration};
 
 slint::include_modules!();
@@ -48,6 +48,7 @@ async fn run_ui(ui: AppWindow, mut options: Options) -> Result<(), AnyError> {
     register_window_move_handler(&ui);
     register_quit_handler(&ui);
     register_key_handler(&ui);
+    register_focus_handler(&ui);
 
     start_ui_updater(&ui);
 
@@ -149,6 +150,27 @@ fn register_key_handler(ui: &AppWindow) {
             },
             _ => EventResult::Reject
         }
+    });
+}
+
+fn register_focus_handler(ui: &AppWindow) {
+    let ui_handle = ui.as_weak();
+    ui.on_focus_change(move |has_focus| {
+        let ui_handle = ui_handle.clone();
+
+        tokio::spawn(async move {
+            // is_co2_focused is not yet updated at this point, but it is directly after.
+            // Hence, we wait just a tiny moment before checking it.
+            sleep(Duration::from_micros(5)).await;
+
+            let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+                if has_focus || ui.get_is_co2_focused() {
+                    ui.set_window_opacity(0.9);
+                } else {
+                    ui.set_window_opacity(0.25);
+                }
+            });
+        });
     });
 }
 

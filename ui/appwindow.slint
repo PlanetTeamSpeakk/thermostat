@@ -13,7 +13,8 @@ export component AppWindow inherits Window {
     background: transparent;
     no-frame: true;
 
-    in-out property<float> transparency: 0.1;
+    in-out property<float> window-opacity: 0.9;
+    out property<bool> is-co2-focused: co2.has-focus;
 
     callback request-window-move(int, int);
     callback request-quit();
@@ -29,8 +30,27 @@ export component AppWindow inherits Window {
         splash.opacity = 0; // Will be animated
     }
 
+    // Area to drag the window
+    TouchArea {
+        moved => {
+            root.request-window-move((self.mouse-x - self.pressed-x) / 1px, (self.mouse-y - self.pressed-y) / 1px);
+        }
+    }
+
+    // Focus handler to handle key events
+    focus := FocusScope {
+        focus-changed-event => {
+            root.focus-change(self.has-focus);
+        }
+    }
+
+    // Content rectangle to handle window transparency.
     Rectangle {
-        opacity: 1.0 - transparency;
+        opacity: window-opacity;
+
+        animate opacity {
+            duration: 250ms;
+        }
 
         // Background
         background-rect := Rectangle {
@@ -87,16 +107,6 @@ export component AppWindow inherits Window {
             filter-intensity: 0.125;
             source: @image-url("../assets/icon.png");
         }
-
-        // Area to drag the window
-        TouchArea {
-            moved => {
-                root.request-window-move((self.mouse-x - self.pressed-x) / 1px, (self.mouse-y - self.pressed-y) / 1px);
-            }
-        }
-
-        // Focus handler to handle key events
-        focus := FocusScope {}
 
         // Close button
         CloseButton {
