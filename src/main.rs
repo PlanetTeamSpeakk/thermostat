@@ -21,7 +21,9 @@ async fn main() -> Result<(), AnyError> {
     let options = options.map_or(Options::default(), |s| serde_json::from_str(&s).unwrap());
 
     // Run the UI.
-    run_ui(AppWindow::new()?, options).await
+    let ui = AppWindow::new()?;
+    ui.set_is_preview(false); // Disable preview mode.
+    run_ui(ui, options).await
 }
 
 /// Registers event handlers and runs the UI.

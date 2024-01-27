@@ -13,6 +13,7 @@ export component AppWindow inherits Window {
     background: transparent;
     no-frame: true;
 
+    in property<bool> is-preview: true; // Whether we're in preview mode. Set to false in the Rust code.
     in-out property<float> window-opacity: 0.9;
     out property<bool> is-co2-focused: co2.has-focus;
 
@@ -61,7 +62,7 @@ export component AppWindow inherits Window {
         }
 
         splash := Rectangle {
-            // visible: false;
+            visible: !is-preview; // Hide in preview mode
             background: background-rect.background;
             border-radius: background-rect.border-radius;
             z: 1;
