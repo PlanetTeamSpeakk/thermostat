@@ -11,7 +11,7 @@ const API_URL: &str = "http://192.168.178.48:5567/";
 const OPTIONS_PATH: &str = "options.json";
 
 const WINDOW_OPACITY_FOCUSED: f32 = 0.9;
-const WINDOW_OPACITY_UNFOCUSED: f32 = 0.15;
+const WINDOW_OPACITY_UNFOCUSED: f32 = 0.35;
 
 const TEMPERATURE_STEP: f32 = 0.5;
 
