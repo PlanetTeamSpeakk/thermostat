@@ -2,8 +2,8 @@
 #![allow(non_snake_case)] // The project name is also the name of the process, which should have a capital T.
 
 use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
-use tokio::task::JoinHandle;
-use std::{fs, path::Path, io::{BufWriter, Write}, time::{Duration, Instant}};
+use tokio::{task::JoinHandle, time::Instant};
+use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration};
 
 slint::include_modules!();
 
@@ -20,18 +20,25 @@ async fn main() -> Result<(), AnyError> {
         else { None };
     let options = options.map_or(Options::default(), |s| serde_json::from_str(&s).unwrap());
 
-    // Get initial config and states from API.
-    let api_resp = get_api_async(true).await?;
-
     // Run the UI.
-    run_ui(AppWindow::new()?, api_resp, options).await
+    run_ui(AppWindow::new()?, options).await
 }
 
 /// Registers event handlers and runs the UI.
-async fn run_ui(ui: AppWindow, resp: APIResponse, mut options: Options) -> Result<(), AnyError> {
-    let singletons = ui.global::<Singletons>();
-    singletons.set_config(resp.config.unwrap().into()); // Set initial config
-    singletons.set_state(resp.into()); // Set initial heating state
+async fn run_ui(ui: AppWindow, mut options: Options) -> Result<(), AnyError> {
+    // Acquire the config and state from the API asynchronously.
+    let ui_handle = ui.as_weak();
+    tokio::spawn(async move {
+        let resp = get_api_async(true).await;
+
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            if let Ok(resp) = resp {
+                let singletons = ui.global::<Singletons>();
+                singletons.set_config(resp.config.unwrap().into());
+                singletons.set_state(resp.into());
+            }
+        });
+    });
 
     // Register event handlers
     register_target_temp_handler(&ui);
