@@ -36,6 +36,9 @@ async fn run_ui(ui: AppWindow, mut options: Options) -> Result<(), AnyError> {
                 let singletons = ui.global::<Singletons>();
                 singletons.set_config(resp.config.unwrap().into());
                 singletons.set_state(resp.into());
+
+                // Hide the splash window.
+                ui.invoke_hide_splash();
             }
         });
     });

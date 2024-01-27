@@ -1,5 +1,5 @@
 import { Button, VerticalBox, GridBox, HorizontalBox, GroupBox, Switch, LineEdit } from "std-widgets.slint";
-import { Chevron, ChevronDirection, CloseButton, PowerButton, Heat , ImageWithFilter} from "elements.slint";
+import { Chevron, ChevronDirection, CloseButton, PowerButton, Heat , ImageWithFilter, Title} from "elements.slint";
 import { Singletons, Config, State } from "logic.slint";
 import { Style } from "style.slint";
 
@@ -25,224 +25,264 @@ export component AppWindow inherits Window {
         focus.focus(); // Focus the window on startup
     }
 
-    // Background
+    public function hide-splash() {
+        splash.opacity = 0; // Will be animated
+    }
+
     Rectangle {
-        background: Style.background-color.transparentize(transparency);
-        border-color: Style.border-color.transparentize(transparency);
-        border-width: 3px;
-        border-radius: 10px;
-    }
+        opacity: 1.0 - transparency;
 
-    // Icon
-    ImageWithFilter {
-        x: 40px;
-        y: 12px;
-        width: 26px;
-        height: 26px;
-        filter-color: black;
-        filter-intensity: 0.125;
-        source: @image-url("../assets/icon.png");
-    }
-
-    // Area to drag the window
-    TouchArea {
-        moved => {
-            root.request-window-move((self.mouse-x - self.pressed-x) / 1px, (self.mouse-y - self.pressed-y) / 1px);
-        }
-    }
-
-    // Focus handler to handle key events
-    focus := FocusScope {}
-
-    // Close button
-    CloseButton {
-        x: parent.width - 30px;
-        y: 10px;
-        width: 20px;
-        height: 20px;
-        
-        clicked => {
-            root.request-quit();
-        }
-    }
-
-    // Box to align the title with rest of the content
-    VerticalBox {
-        // Title
-        Text {
-            horizontal-alignment: center;
-            text: "Thermostat";
-            font-size: 30px;
-            font-weight: 600;
-            height: 36px;
-            color: Style.title-color;
+        // Background
+        background-rect := Rectangle {
+            background: Style.background-color;
+            border-color: Style.border-color;
+            border-width: 3px;
+            border-radius: 10px;
         }
 
-        // Box to split switches and temperature/power button
-        GridBox {
-            // Current temperature
-            HorizontalLayout {
+        splash := Rectangle {
+            // visible: false;
+            background: background-rect.background;
+            border-radius: background-rect.border-radius;
+            z: 1;
+
+            // Recreate the border
+            Rectangle {
+                background: transparent;
+                border-color: Style.border-color;
+                border-radius: background-rect.border-radius;
+                border-width: 3px;
+                z: 2;
+            }
+
+            VerticalLayout {
                 alignment: center;
-                col: 0;
-                row: 0;
-                width: 130px;
+                spacing: 10px;
 
-                GridLayout {
-                    HorizontalLayout {
-                        col: 0;
-                        row: 0;
-                        alignment: center;
+                Title {}
 
-                        Heat {
-                            heating: Singletons.state.is-heating;
-                            width: 70px;
-                            opacity: self.heating ? 0.35 : 0;
+                HorizontalLayout {
+                    alignment: center;
 
-                            animate opacity {
-                                duration: 150ms;
-                            }
-                        }
-                    }
-                    
-
-                    VerticalLayout {
-                        col: 0;
-                        row: 0;
-                        alignment: center;
-                        padding-top: -17px; // Hack to align the text with the temperature
-    
-                        Text {
-                            horizontal-alignment: center;
-                            text: "Current";
-                            font-size: 15px;
-                            color: Style.text-color;
-                        }
-    
-                        Text {
-                            horizontal-alignment: center;
-                            text: "\{Singletons.state.current-temp} °C";
-                            font-size: 40px;
-                            color: Style.text-color;
-                        }
+                    Image {
+                        width: 150px;
+                        height: 150px;
+                        source: @image-url("../assets/icon.png");
                     }
                 }
             }
 
-            // Switches
-            VerticalBox {
-                alignment: center;
-                col: 0;
-                row: 1;
+            animate opacity {
+                duration: 250ms;
+            }
+        }
 
-                // Force on switch
-                Switch {
-                    checked: Singletons.config.force;
-                    text: "Force on";
+        // Icon
+        ImageWithFilter {
+            x: 40px;
+            y: 12px;
+            width: 26px;
+            height: 26px;
+            filter-color: black;
+            filter-intensity: 0.125;
+            source: @image-url("../assets/icon.png");
+        }
 
-                    toggled => {
-                        Singletons.config.force = self.checked;
-                        root.request-config-change();
-                    }
-                }
+        // Area to drag the window
+        TouchArea {
+            moved => {
+                root.request-window-move((self.mouse-x - self.pressed-x) / 1px, (self.mouse-y - self.pressed-y) / 1px);
+            }
+        }
 
-                // Require CO₂ switch
-                require-co2 := Switch {
-                    checked: Singletons.config.co2-target >= 0;
-                    text: "Require CO₂";
+        // Focus handler to handle key events
+        focus := FocusScope {}
 
-                    toggled => {
-                        Singletons.config.require-co2 = self.checked;
-                        root.request-config-change();
-                    }
-                }
+        // Close button
+        CloseButton {
+            x: parent.width - 30px;
+            y: 10px;
+            width: 20px;
+            height: 20px;
+            
+            clicked => {
+                root.request-quit();
+            }
+        }
 
-                // CO₂ target
+        // Box to align the title with rest of the content
+        VerticalBox {
+            // Title
+            Title {
+                height: 36px;
+            }
+
+            // Box to split switches and temperature/power button
+            GridBox {
+                // Current temperature
                 HorizontalLayout {
-                    width: 100px;
-                    spacing: 5px;
-                    co2 := LineEdit {
-                        enabled: require-co2.checked;
-                        input-type: number;
-                        text: "\{Singletons.config.co2-target}";
-                        width: 60px;
+                    alignment: center;
+                    col: 0;
+                    row: 0;
+                    width: 130px;
+
+                    GridLayout {
+                        HorizontalLayout {
+                            col: 0;
+                            row: 0;
+                            alignment: center;
+
+                            Heat {
+                                heating: Singletons.state.is-heating;
+                                width: 70px;
+                                opacity: self.heating ? 0.35 : 0;
+
+                                animate opacity {
+                                    duration: 150ms;
+                                }
+                            }
+                        }
                         
-                        accepted(content) => {
-                            Singletons.config.co2-target = content.to_float();
+
+                        VerticalLayout {
+                            col: 0;
+                            row: 0;
+                            alignment: center;
+                            padding-top: -17px; // Hack to align the text with the temperature
+        
+                            Text {
+                                horizontal-alignment: center;
+                                text: "Current";
+                                font-size: 15px;
+                                color: Style.text-color;
+                            }
+        
+                            Text {
+                                horizontal-alignment: center;
+                                text: "\{Singletons.state.current-temp} °C";
+                                font-size: 40px;
+                                color: Style.text-color;
+                            }
+                        }
+                    }
+                }
+
+                // Switches
+                VerticalBox {
+                    alignment: center;
+                    col: 0;
+                    row: 1;
+
+                    // Force on switch
+                    Switch {
+                        checked: Singletons.config.force;
+                        text: "Force on";
+
+                        toggled => {
+                            Singletons.config.force = self.checked;
                             root.request-config-change();
+                        }
+                    }
+
+                    // Require CO₂ switch
+                    require-co2 := Switch {
+                        checked: Singletons.config.co2-target >= 0;
+                        text: "Require CO₂";
+
+                        toggled => {
+                            Singletons.config.require-co2 = self.checked;
+                            root.request-config-change();
+                        }
+                    }
+
+                    // CO₂ target
+                    HorizontalLayout {
+                        width: 100px;
+                        spacing: 5px;
+                        co2 := LineEdit {
+                            enabled: require-co2.checked;
+                            input-type: number;
+                            text: "\{Singletons.config.co2-target}";
+                            width: 60px;
+                            
+                            accepted(content) => {
+                                Singletons.config.co2-target = content.to_float();
+                                root.request-config-change();
+                            }
+                        }
+
+                        Text {
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                            height: 24px;
+                            color: #ccced4; // Same color as the switches' text
+                            text: "ppm CO₂";
+                        }
+                    }
+                }
+
+                // Target temperature
+                VerticalBox {
+                    alignment: center;
+                    width: 150px;
+                    col: 1;
+                    row: 0;
+
+                    property<length> chevron-size: 80px;
+
+                    HorizontalLayout {
+                        alignment: center;
+
+                        Chevron {
+                            width: chevron-size;
+                            height: chevron-size / 2;
+                            direction: up;
+
+                            clicked => {
+                                Singletons.config.target-temp += 0.5;
+                                root.request-config-change();
+                            }
                         }
                     }
 
                     Text {
-                        vertical-alignment: center;
                         horizontal-alignment: center;
-                        height: 24px;
-                        color: #ccced4; // Same color as the switches' text
-                        text: "ppm CO₂";
+                        text: "\{Singletons.config.target-temp} °C";
+                        font-size: 40px;
+                        color: Style.text-color;
                     }
-                }
-            }
 
-            // Target temperature
-            VerticalBox {
-                alignment: center;
-                width: 150px;
-                col: 1;
-                row: 0;
+                    HorizontalLayout {
+                        alignment: center;
 
-                property<length> chevron-size: 80px;
+                        Chevron {
+                            width: chevron-size;
+                            height: chevron-size / 2;
+                            direction: down;
 
-                HorizontalLayout {
-                    alignment: center;
-
-                    Chevron {
-                        width: chevron-size;
-                        height: chevron-size / 2;
-                        direction: up;
-
-                        clicked => {
-                            Singletons.config.target-temp += 0.5;
-                            root.request-config-change();
+                            clicked => {
+                                Singletons.config.target-temp -= 0.5;
+                                root.request-config-change();
+                            }
                         }
                     }
                 }
 
-                Text {
-                    horizontal-alignment: center;
-                    text: "\{Singletons.config.target-temp} °C";
-                    font-size: 40px;
-                    color: Style.text-color;
-                }
-
-                HorizontalLayout {
+                // Power button
+                HorizontalBox {
                     alignment: center;
+                    col: 1;
+                    row: 1;
 
-                    Chevron {
-                        width: chevron-size;
-                        height: chevron-size / 2;
-                        direction: down;
+                    PowerButton {
+                        on: Singletons.config.master-switch;
+                        width: 100px;
+                        height: 100px;
 
-                        clicked => {
-                            Singletons.config.target-temp -= 0.5;
+                        toggle(state) => {
+                            Singletons.config.master-switch = state;
                             root.request-config-change();
                         }
-                    }
-                }
-            }
-
-            // Power button
-            HorizontalBox {
-                alignment: center;
-                col: 1;
-                row: 1;
-
-                PowerButton {
-                    on: Singletons.config.master-switch;
-                    width: 100px;
-                    height: 100px;
-
-                    toggle(state) => {
-                        Singletons.config.master-switch = state;
-                        root.request-config-change();
                     }
                 }
             }
