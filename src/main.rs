@@ -3,12 +3,13 @@
 
 use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
 use tokio::{task::JoinHandle, time::{sleep, Instant}};
-use std::{fs, path::Path, io::{BufWriter, Write}, time::Duration};
+use std::{fs, path::{Path, PathBuf}, io::{BufWriter, Write}, time::Duration};
+use directories::ProjectDirs;
 
 slint::include_modules!();
 
 const API_URL: &str = "http://192.168.178.48:5567/";
-const OPTIONS_PATH: &str = "options.json";
+const OPTIONS_FILE: &str = "options.json";
 
 const WINDOW_OPACITY_FOCUSED: f32 = 0.9;
 const WINDOW_OPACITY_UNFOCUSED: f32 = 0.35;
@@ -19,9 +20,22 @@ type AnyError = Box<dyn std::error::Error>;
 
 #[tokio::main]
 async fn main() -> Result<(), AnyError> {
+    // Get data dir, if possible.
+    // Default to current directory.
+    let app_dir = ProjectDirs::from("com", "PTSMods", "Thermostat");
+    let mut data_dir = app_dir.map_or_else(|| std::env::current_dir().unwrap().to_owned(), |pds| pds.data_dir().to_owned());
+    
+    if let Err(e) = fs::create_dir_all(&data_dir) {
+        eprintln!("Could not create data dir: {:?}", e);
+        data_dir = std::env::current_dir().unwrap(); // Fallback to current directory.
+    }
+    println!("Data dir: {:?}", data_dir);
+
+    let options_path = data_dir.join(OPTIONS_FILE);
+
     // Read options from disk.
     let options = 
-        if Path::new(OPTIONS_PATH).exists() { Some(fs::read_to_string(OPTIONS_PATH)?) }
+        if Path::new(&options_path).exists() { Some(fs::read_to_string(&options_path)?) }
         else { None };
     let options = options.map_or(Ok(Options::default()), |s| serde_json::from_str(&s));
 
@@ -34,11 +48,11 @@ async fn main() -> Result<(), AnyError> {
     let ui = AppWindow::new()?;
     ui.set_is_preview(false); // Disable preview mode.
     ui.global::<Singletons>().set_options(options.app_options.clone());
-    run_ui(ui, options).await
+    run_ui(ui, options, &options_path).await
 }
 
 /// Registers event handlers and runs the UI.
-async fn run_ui(ui: AppWindow, mut options: Options) -> Result<(), AnyError> {
+async fn run_ui(ui: AppWindow, mut options: Options, options_path: &PathBuf) -> Result<(), AnyError> {
     // Acquire the config and state from the API asynchronously.
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
@@ -72,7 +86,7 @@ async fn run_ui(ui: AppWindow, mut options: Options) -> Result<(), AnyError> {
     // Save options upon shutdown.
     options.window_pos = ui.window().position();
     options.app_options = ui.global::<Singletons>().get_options().into();
-    save_options(&options)?;
+    save_options(&options, options_path)?;
 
     Ok(())
 }
@@ -213,8 +227,8 @@ fn start_ui_updater(ui: &AppWindow) {
 }
 
 /// Writes the options to disk in JSON format.
-fn save_options(options: &Options) -> Result<(), AnyError> {
-    let mut writer = BufWriter::new(fs::File::create(OPTIONS_PATH)?);
+fn save_options(options: &Options, path: &PathBuf) -> Result<(), AnyError> {
+    let mut writer = BufWriter::new(fs::File::create(path)?);
     serde_json::to_writer_pretty(&mut writer, options)?;
     writer.flush()?;
     Ok(())
