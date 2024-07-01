@@ -342,12 +342,12 @@ struct APIResponse {
 #[derive(serde::Deserialize, Debug)]
 struct APIResponseData {
     config: Option<ThermostatConfig>,
-    available: bool,
     state: APIResponseStateData,
 }
 
 #[derive(serde::Deserialize, Debug)]
 struct APIResponseStateData {
+    available: bool,
     temperature: f32,
     co2: i32,
     is_heating: bool,
@@ -356,6 +356,7 @@ struct APIResponseStateData {
 impl From<APIResponseStateData> for State {
     fn from(state: APIResponseStateData) -> Self {
         Self {
+            available: state.available,
             current_temp: state.temperature,
             co2: state.co2,
             is_heating: state.is_heating,

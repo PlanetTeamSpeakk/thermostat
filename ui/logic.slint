@@ -11,6 +11,7 @@ export struct Config {
 
 // Current state of the heater, gotten from the API.
 export struct State {
+    available: bool,
     current-temp: float,
     co2: int,
     is-heating: bool

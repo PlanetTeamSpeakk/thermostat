@@ -29,6 +29,7 @@ export component Chevron inherits Rectangle {
 export component CloseButton inherits Rectangle {
     background: Functions.darken-hc(#c00000, touch.pressed, touch.has-hover);
     border-radius: self.width / 8;
+    out property<bool> has-hover: touch.has-hover;
 
     callback clicked <=> touch.clicked;
 

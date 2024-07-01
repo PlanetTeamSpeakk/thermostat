@@ -26,6 +26,7 @@ export component AppWindow inherits Window {
 
     init => {
         focus.focus(); // Focus the window on startup
+        Singletons.state.available = true; // Assume the thermostat is available until we know otherwise
     }
 
     public function hide-splash() {
@@ -99,13 +100,51 @@ export component AppWindow inherits Window {
             }
         }
 
+        Rectangle {
+            x: 30px;
+            y: 50px;
+            z: 10;
+            visible: !Singletons.state.available;
+            width: parent.width - 60px;
+            height: 40px;
+            background: #80000080; // Dark red with 50% opacity
+            border-color: red.darker(0.5);
+            border-width: background-rect.border-width;
+            border-radius: background-rect.border-radius;
+
+            animate opacity {
+                duration: 100ms;
+            }
+
+            Text {
+                x: 16px;
+                horizontal-alignment: left;
+                text: "Thermostat is currently unavailable!";
+            }
+
+            CloseButton {
+                width: 20px;
+                height: 20px;
+                background: self.has-hover ? white.with-alpha(0.2) : transparent;
+                x: parent.width - 30px;
+
+                clicked => {
+                    parent.opacity = 0%;
+                }
+
+                animate background {
+                    duration: 150ms;
+                }
+            }
+        }
+
         // Icon
         ImageWithFilter {
             x: 40px;
             y: 12px;
             width: 26px;
             height: 26px;
-            filter-color: black;
+            filter-color: blue;
             filter-intensity: 0.125;
             source: @image-url("../assets/icon.png");
         }
