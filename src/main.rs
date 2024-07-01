@@ -5,6 +5,8 @@ use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPos
 use tokio::{task::JoinHandle, time::{sleep, Instant}};
 use std::{fs, path::{Path, PathBuf}, io::{BufWriter, Write}, time::Duration};
 use directories::ProjectDirs;
+use anyhow::Result;
+use log::{error, info};
 
 slint::include_modules!();
 
@@ -16,20 +18,20 @@ const WINDOW_OPACITY_UNFOCUSED: f32 = 0.35;
 
 const TEMPERATURE_STEP: f32 = 0.5;
 
-type AnyError = Box<dyn std::error::Error>;
-
 #[tokio::main]
-async fn main() -> Result<(), AnyError> {
+async fn main() -> Result<()> {
+    env_logger::init();
+    
     // Get data dir, if possible.
     // Default to current directory.
     let app_dir = ProjectDirs::from("com", "PTSMods", "Thermostat");
     let mut data_dir = app_dir.map_or_else(|| std::env::current_dir().unwrap().to_owned(), |pds| pds.data_dir().to_owned());
     
     if let Err(e) = fs::create_dir_all(&data_dir) {
-        eprintln!("Could not create data dir: {:?}", e);
+        error!("Could not create data dir: {:?}", e);
         data_dir = std::env::current_dir().unwrap(); // Fallback to current directory.
     }
-    println!("Data dir: {:?}", data_dir);
+    info!("Data dir: {:?}", data_dir);
 
     let options_path = data_dir.join(OPTIONS_FILE);
 
@@ -40,7 +42,7 @@ async fn main() -> Result<(), AnyError> {
     let options = options.map_or(Ok(Options::default()), |s| serde_json::from_str(&s));
 
     if let Err(err) = &options {
-        eprintln!("Could not read options from disk: {:?}", err);
+        error!("Could not read options from disk: {:?}", err);
     }
     let options = options.unwrap_or_default();
 
@@ -52,7 +54,7 @@ async fn main() -> Result<(), AnyError> {
 }
 
 /// Registers event handlers and runs the UI.
-async fn run_ui(ui: AppWindow, mut options: Options, options_path: &PathBuf) -> Result<(), AnyError> {
+async fn run_ui(ui: AppWindow, mut options: Options, options_path: &PathBuf) -> Result<()> {
     // Acquire the config and state from the API asynchronously.
     let ui_handle = ui.as_weak();
     tokio::spawn(async move {
@@ -85,7 +87,7 @@ async fn run_ui(ui: AppWindow, mut options: Options, options_path: &PathBuf) -> 
     
     // Save options upon shutdown.
     options.window_pos = ui.window().position();
-    options.app_options = ui.global::<Singletons>().get_options().into();
+    options.app_options = ui.global::<Singletons>().get_options();
     save_options(&options, options_path)?;
 
     Ok(())
@@ -220,14 +222,14 @@ fn start_ui_updater(ui: &AppWindow) {
                         ui.global::<Singletons>().set_state(resp.into());
                     });
                 },
-                Err(err) => eprintln!("Could not get metrics from API: {:?}", err),
+                Err(err) => error!("Could not get metrics from API: {:?}", err),
             }
         }
     });
 }
 
 /// Writes the options to disk in JSON format.
-fn save_options(options: &Options, path: &PathBuf) -> Result<(), AnyError> {
+fn save_options(options: &Options, path: &PathBuf) -> Result<()> {
     let mut writer = BufWriter::new(fs::File::create(path)?);
     serde_json::to_writer_pretty(&mut writer, options)?;
     writer.flush()?;
@@ -264,7 +266,7 @@ fn update_config(ui: &AppWindow, cfg: ThermostatConfig) {
 
 /// Send a PATCH request to the API.
 async fn patch_api_async(client: &reqwest::Client, new_config: ThermostatConfig) -> Result<APIResponse, reqwest::Error> {
-    println!("Updating config to {:?}", new_config);
+    info!("Updating config to {:?}", new_config);
 
     client.patch(API_URL)
         .json(&new_config)
