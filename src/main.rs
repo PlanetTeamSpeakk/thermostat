@@ -1,7 +1,7 @@
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")] // Hide console window on Windows if we're not debugging.
 #![allow(non_snake_case)] // The project name is also the name of the process, which should have a capital T.
 
-use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition};
+use slint::{private_unstable_api::re_exports::{EventResult, KeyEvent}, WindowPosition, PhysicalPosition, Weak};
 use tokio::{task::JoinHandle, time::{sleep, Instant}};
 use std::{fs, path::{Path, PathBuf}, io::{BufWriter, Write}, time::Duration};
 use directories::ProjectDirs;
@@ -10,7 +10,10 @@ use log::{error, info};
 
 slint::include_modules!();
 
+#[cfg(not(debug_assertions))]
 const API_URL: &str = "http://192.168.178.48:5567/";
+#[cfg(debug_assertions)]
+const API_URL: &str = "http://192.168.178.48:5568/";
 const OPTIONS_FILE: &str = "options.json";
 
 const WINDOW_OPACITY_FOCUSED: f32 = 0.9;
@@ -21,7 +24,7 @@ const TEMPERATURE_STEP: f32 = 0.5;
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-    
+
     // Get data dir, if possible.
     // Default to current directory.
     let app_dir = ProjectDirs::from("com", "PTSMods", "Thermostat");
@@ -62,9 +65,15 @@ async fn run_ui(ui: AppWindow, mut options: Options, options_path: &PathBuf) -> 
 
         let _ = ui_handle.upgrade_in_event_loop(move |ui| {
             if let Ok(resp) = resp {
+                if !resp.success {
+                    error!("API returned an error: {}", resp.error.unwrap());
+                    return;
+                }
+                
                 let singletons = ui.global::<Singletons>();
-                singletons.set_config(resp.config.unwrap().into());
-                singletons.set_state(resp.into());
+                let data = resp.data.unwrap();
+                singletons.set_config(data.config.unwrap().into());
+                singletons.set_state(data.state.into());
 
                 // Hide the splash window.
                 ui.invoke_hide_splash();
@@ -215,13 +224,7 @@ fn start_ui_updater(ui: &AppWindow) {
             interval.tick().await; // Run every 15 seconds
 
             match get_api_async(false).await {
-                Ok(resp) => {
-                    // Ignore result, we don't care if it actually updated.
-                    // If it didn't, the UI is probably gone anyway.
-                    let _ = ui_handle.upgrade_in_event_loop(move |ui| {
-                        ui.global::<Singletons>().set_state(resp.into());
-                    });
-                },
+                Ok(resp) => try_apply_response(ui_handle.clone(), resp),
                 Err(err) => error!("Could not get metrics from API: {:?}", err),
             }
         }
@@ -256,12 +259,23 @@ fn update_config(ui: &AppWindow, cfg: ThermostatConfig) {
         let res = patch_api_async(&reqwest::Client::new(), cfg).await;
 
         if let Ok(resp) = res {
-            let _ = ui_handle.upgrade_in_event_loop(move |ui| {
-                // Update state
-                ui.global::<Singletons>().set_state(resp.into());
-            });
+            try_apply_response(ui_handle, resp);
+        } else {
+            error!("Error sending API request: {:?}", res.err());
         }
     });
+}
+
+fn try_apply_response(ui_handle: Weak<AppWindow>, resp: APIResponse) {
+    if resp.success {
+        // Ignore result, we don't care if it actually updated.
+        // If it didn't, the UI is probably gone anyway.
+        let _ = ui_handle.upgrade_in_event_loop(move |ui| {
+            ui.global::<Singletons>().set_state(resp.data.unwrap().state.into());
+        });
+    } else {
+        error!("API returned an error: {}", resp.error.unwrap());
+    }
 }
 
 /// Send a PATCH request to the API.
@@ -320,18 +334,31 @@ impl From<ThermostatConfig> for Config {
 
 #[derive(serde::Deserialize, Debug)]
 struct APIResponse {
+    success: bool,
+    data: Option<APIResponseData>,
+    error: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct APIResponseData {
     config: Option<ThermostatConfig>,
+    available: bool,
+    state: APIResponseStateData,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct APIResponseStateData {
     temperature: f32,
     co2: i32,
     is_heating: bool,
 }
 
-impl From<APIResponse> for State {
-    fn from(resp: APIResponse) -> Self {
+impl From<APIResponseStateData> for State {
+    fn from(state: APIResponseStateData) -> Self {
         Self {
-            current_temp: resp.temperature,
-            co2: resp.co2,
-            is_heating: resp.is_heating,
+            current_temp: state.temperature,
+            co2: state.co2,
+            is_heating: state.is_heating,
         }
     }
 }

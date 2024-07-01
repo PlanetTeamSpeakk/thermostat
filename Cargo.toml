@@ -19,6 +19,7 @@ slint = "1.6.0"
 tokio = { version = "1.38.0", features = ["full"] }
 
 [build-dependencies]
+anyhow = "1.0.86"
 slint-build = "1.6.0"
 winres = "0.1.12"
 winapi = "0.3.9"
