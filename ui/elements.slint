@@ -33,6 +33,10 @@ export component CloseButton inherits Rectangle {
 
     callback clicked <=> touch.clicked;
 
+    animate background {
+        duration: Style.fade-duration;
+    }
+
     // White cross in button
     Path {
         width: 0.6 * parent.width; // Add padding
@@ -165,6 +169,10 @@ export component OnTopButton {
         width: parent.width;
         height: parent.height;
         fill: Functions.darken-hc(on ? color : color.darker(0.4), touch.pressed, touch.has-hover);
+
+        animate fill {
+            duration: Style.fade-duration;
+        }
     }
 
     touch := TouchArea {

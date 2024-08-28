@@ -113,7 +113,7 @@ export component AppWindow inherits Window {
             border-radius: background-rect.border-radius;
 
             animate opacity {
-                duration: 100ms;
+                duration: Style.fade-duration;
             }
 
             Text {
@@ -131,10 +131,6 @@ export component AppWindow inherits Window {
                 clicked => {
                     parent.opacity = 0%;
                 }
-
-                animate background {
-                    duration: 150ms;
-                }
             }
         }
 
@@ -144,7 +140,7 @@ export component AppWindow inherits Window {
             y: 12px;
             width: 26px;
             height: 26px;
-            filter-color: blue;
+            filter-color: black;
             filter-intensity: 0.125;
             source: @image-url("../assets/icon.png");
         }

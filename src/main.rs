@@ -42,12 +42,14 @@ async fn main() -> Result<()> {
     let options = 
         if Path::new(&options_path).exists() { Some(fs::read_to_string(&options_path)?) }
         else { None };
-    let options = options.map_or(Ok(Options::default()), |s| serde_json::from_str(&s));
+    let options = options
+        .map(|s| serde_json::from_str(&s))
+        .unwrap_or(Ok(Options::default()));
 
     if let Err(err) = &options {
         error!("Could not read options from disk: {:?}", err);
     }
-    let options = options.unwrap_or_default();
+    let options = options.unwrap();
 
     // Run the UI.
     let ui = AppWindow::new()?;
@@ -148,7 +150,7 @@ fn register_window_move_handler(ui: &AppWindow) {
         let pos = ui.window().position(); // Current position
 
         // Move the window along with the cursor.
-        ui.window().set_position(slint::WindowPosition::Physical(slint::PhysicalPosition { x: pos.x + dx, y: pos.y + dy }));
+        ui.window().set_position(WindowPosition::Physical(PhysicalPosition { x: pos.x + dx, y: pos.y + dy }));
     });
 }
 
